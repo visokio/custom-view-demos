@@ -1,0 +1,84 @@
+{
+  "name": "Mekko view",
+  "frameworkVersion": "v1",
+  "sandbox": false,
+  "autoPane": true,
+  "autoQuery": true,
+  "dataLimit": 10000,
+  "options": {
+    "items": {
+      "measure": {
+        "displayName": "Measure",
+        "type": "MEASURE",
+        "mandatory": true,
+        "validFieldTypes": [
+          "NUMBER"
+        ],
+        "validMeasureFunctions": [
+          "SUM"
+        ]
+      },
+      "paneX": {
+        "displayName": "Pane X",
+        "type": "GROUPING",
+        "list": true,
+        "validGroupingTypes": [
+          "UNIQUE_VALUES"
+        ]
+      },
+      "paneY": {
+        "displayName": "Pane Y",
+        "type": "GROUPING",
+        "list": true,
+        "validGroupingTypes": [
+          "UNIQUE_VALUES"
+        ]
+      },
+      "split": {
+        "displayName": "Split",
+        "type": "GROUPING",
+        "mandatory": true,
+        "validFieldTypes": [
+          "TEXT"
+        ]
+      },
+      "stack": {
+        "displayName": "Stack",
+        "type": "GROUPING",
+        "mandatory": true,
+        "validFieldTypes": [
+          "TEXT"
+        ]
+      }
+    },
+    "structure": {
+      "toolbar": [
+        "measure",
+        "split",
+        "stack"
+      ],
+      "x": [
+        "paneX"
+      ],
+      "y": [
+        "paneY"
+      ]
+    }
+  },
+  "defaultOptions": {
+    "items": {},
+    "pane": {
+      "headerWidth": 100,
+      "headerHeight": 30,
+      "paneWidth": 100,
+      "paneHeight": 100,
+      "xHeaderPlacement": "TOP",
+      "yHeaderPlacement": "LEFT"
+    }
+  },
+  "pane": {
+    "minWidth": 50,
+    "minHeight": 50,
+    "maxCells": 20
+  }
+}
