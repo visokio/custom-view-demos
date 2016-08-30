@@ -1,0 +1,53 @@
+{
+  "name": "Printable pivot",
+  "frameworkVersion": "v1",
+  "sandbox": false,
+  "autoPane": false,
+  "autoQuery": false,
+  "options": {
+    "items": {
+      "measures": {
+        "displayName": "Measure",
+        "type": "MEASURE",
+        "mandatory": true
+      },
+      "paneX1": {
+        "displayName": "Pane X",
+        "type": "GROUPING",
+        "list": true
+      },
+      "paneY1": {
+        "displayName": "Pane Y",
+        "type": "GROUPING",
+        "list": true
+      }
+    },
+    "structure": {
+      "toolbar": [
+        "measures"
+      ],
+      "x": [
+        "paneX1"
+      ],
+      "y": [
+        "paneY1"
+      ]
+    }
+  },
+  "defaultOptions": {
+    "items": {},
+    "pane": {
+      "headerWidth": 100,
+      "headerHeight": 30,
+      "paneWidth": 100,
+      "paneHeight": 100,
+      "xHeaderPlacement": "TOP",
+      "yHeaderPlacement": "LEFT"
+    }
+  },
+  "pane": {
+    "minWidth": 50,
+    "minHeight": 50,
+    "maxCells": 20
+  }
+}
