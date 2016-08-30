@@ -1,0 +1,302 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+
+    <style>
+      @media not print {
+        html, body {
+
+            /* Ensure the body fills the view, so clicks are handled everywhere: */
+            width: 100%;
+            height: 100%;
+          	overflow: auto;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+          	padding: 2px;
+        }
+      }
+      @media print {
+       /* Chrome ~54 adds support for repeating headers
+        https://codereview.chromium.org/2021703002
+        we probably don't need this but it might help other browsers: */
+	   thead {display: table-header-group; break-inside: avoid;}
+	  }
+        main {
+            font-family: sans-serif;
+            font-size: 11px;
+            white-space: pre;
+        }
+      table {
+        border-spacing: 0;
+        width: 100%;
+      }
+      th, td {
+        border: 0;
+        padding: 3px;
+        text-align: center;
+        color: #444;
+        font-weight: bold;
+      }
+      th {
+        background: #d3d3d3;
+        color: #444;
+        padding-left: 5px;
+        padding-right: 5px;
+        border-right: 1px solid #e3e3e3;
+        border-bottom: 1px solid #e3e3e3;
+      }
+      td {
+        border-right: 1px solid #e3e3e3;
+        border-bottom: 1px solid #e3e3e3;
+        background: white;
+      }
+      tr.colheader th {
+        text-align: left;
+      }
+      tr.colheader.tier0 th {
+        text-align: center;
+      }
+      th.rowheader {
+        text-align: left;
+      }
+      th.total, td.total {
+        background: #004472;
+        color: white;
+      }
+      button: {
+        margin: 3px;
+      }
+    </style>
+
+    <!-- Put SCRIPT tags to load 3rd party libraries here -->
+
+</head>
+
+<body>
+
+<button onClick="window.print()">Print</button>
+
+<main id="main"></main><!-- This element is where the view will render -->
+
+<script src="/_global_/customview/v1/omniscope.js"></script><!-- Add the Omniscope custom view API -->
+
+<script>
+    if (!omniscope || !omniscope.view) throw new Error("Omniscope chart API is not loaded");
+    omniscope.view.on("load", function() {
+        window.onerror = function(msg) {
+            omniscope.view.error(msg);
+        }
+    });
+
+    // Ensure clicks on unoccupied space clear the selection in Omniscope, and close menus:
+    document.body.addEventListener("click", function() {
+        omniscope.view.whitespaceClick();
+    });
+
+    // Naively redraw on any of these events 
+    // (load = first init, update = external settings/state change, resize = browser window resized)
+    omniscope.view.on(["load", "update", "resize"], function() {
+
+      omniscope.view.busy(true);
+      
+      var queries = [];
+      for (var limit = omniscope.view.context().options.items.paneX1.length; limit>=0; limit--) {
+        queries.push({
+          input: {
+            filters: omniscope.view.context().dataConfig.filter,
+          },
+          axes: [
+            {
+              groupings: omniscope.view.context().options.items.paneX1.slice(0, limit),
+            },
+            {
+              groupings: omniscope.view.context().options.items.paneY1,
+            }
+          ],
+          cellQueries: {
+            data: {
+              "@visokiotype": "QueryApi.AggregateOperation",
+              measures: [omniscope.view.context().options.items.measures]
+            }
+          }
+        });
+      }
+      
+      omniscope.query.builder(omniscope.view.endpoint()).batch(queries)
+        .on("error", function(event) {
+          if (event.data.error) console.log(event.data.error);
+          omniscope.view.error(event.data.message, event.data.internal);
+        })
+        .on("load", function(event) {
+          var data = event.data;
+          delete data.diagnostics;
+          render(injectTotals(data));
+        })
+        .execute();
+      
+    });
+  
+  function injectTotals(results) {
+    var result = results[0];
+    for (var q = 1; q < results.length; q++) {
+      var merge = results[q];
+      
+      // merge has fewer axis tiers than result.
+      // insert each column (into headers and cells)
+      
+      mx = 0;
+      
+      for (var x=0; x<result.axes[0].headers.length; ) {
+        var key = merge.axes[0].headers[mx];
+        if (q===results.length-1) key = []; // ignore the ["all"] special header
+        // find the x after key
+        while (arrayPrefixMatch(result.axes[0].headers[x], key)) x++;
+        // x is now the next column after key
+        // insert here
+        var newHead = key.slice(0);
+        for (var k=q; k>0; k--) newHead.push({total:true});
+        result.axes[0].headers.splice(x, 0, newHead);
+        
+        // also update data; note our grid is [x][y] because that's the order of our axes
+        result.cells.splice(x, 0, merge.cells[mx]);
+        
+        result.axes[0].size++;
+        mx++;
+        x++;
+        if (mx>=merge.axes[0].headers.length) break;
+      }
+    }
+    return result;
+  }
+  
+  function arrayPrefixMatch(array, prefix) {
+    if (!array) return false;
+    for (var i=0; i<prefix.length; i++) {
+      if (array[i]!==prefix[i]) return false;
+    }
+    return true;
+  }
+  
+  function render(data) {
+    
+    var main = document.getElementById("main");
+    main.textContent = "";
+    //main.textContent = JSON.stringify(data, null, 2);
+    var table = document.createElement("table");
+    main.appendChild(table);
+    
+    var ctx = omniscope.view.context();
+    
+    var x, x2, y, y2, th, tr, td, val, w, h, span, tier, tier2, tbody, thead;
+    
+    w = data.axes[0].size;
+    h = data.axes[1].size;
+    
+    thead = document.createElement("thead");
+    tbody = document.createElement("tbody");
+    table.appendChild(thead);
+    table.appendChild(tbody);
+    
+    for (tier=0; tier<ctx.options.items.paneX1.length; tier++) {
+
+      tr = document.createElement("tr");
+      thead.appendChild(tr);
+      tr.classList.add("colheader");
+      tr.classList.add("tier"+tier);
+      
+      if (tier===0) {
+        th = document.createElement("th");
+        th.classList.add("corner");
+        th.colSpan = ctx.options.items.paneY1.length;
+        th.rowSpan = ctx.options.items.paneX1.length;
+        tr.appendChild(th);
+      }
+      
+      for (x=0; x<w; x+=span) {
+        val = data.axes[0].headers[x][tier];
+        span = 1;
+        COUNTSPAN:
+        for (x2=x+1; x2<w; x2++) {
+          for (tier2=tier; tier2>=0; tier2--) {
+	        if (data.axes[0].headers[x2][tier2]!==data.axes[0].headers[x][tier2]) break COUNTSPAN;
+          }
+          span++;
+        }
+        th = document.createElement("th");
+        tr.appendChild(th);
+        th.colSpan = span;
+        th.textContent = head(val);
+        if (val && val.total) th.classList.add("total");
+      }
+    }
+    
+    var rows = [];
+    for (y=0; y<h; y++) {
+      tr = document.createElement("tr");
+	  tbody.appendChild(tr);
+      rows.push(tr);
+    }
+    
+    for (tier=0; tier<ctx.options.items.paneY1.length; tier++) {
+      for (y=0; y<h; y+=span) {
+        val = data.axes[1].headers[y][tier];
+        span = 1;
+        COUNTSPAN:
+        for (y2=y+1; y2<h; y2++) {
+          for (tier2=tier; tier2>=0; tier2--) {
+	        if (data.axes[1].headers[y2][tier2]!==data.axes[1].headers[y][tier2]) break COUNTSPAN;
+          }
+          span++;
+        }
+        tr = rows[y];
+        th = document.createElement("th");
+        tr.appendChild(th);
+        th.classList.add("rowheader");
+        th.classList.add("tier"+tier);
+        th.rowSpan = span;
+        th.textContent = head(val);
+        if (val && val.total) th.classList.add("total");
+      }
+    }
+    
+    for (y=0; y<h; y++) {
+      tr = rows[y];
+      for (x=0; x<w; x++) {
+        val = data.cells[x][y]
+        td = document.createElement("td");
+        tr.appendChild(td);
+        td.textContent = cell(val);
+        var headerArr = data.axes[0].headers[x];
+        var headerLast = headerArr[headerArr.length-1];
+        if (headerLast && headerLast.total) td.classList.add("total");
+      }
+    }
+    
+    omniscope.view.busy(false);
+  }
+  
+  function head(c) {
+    if (c===undefined) return "";
+    if (c===null) return "(no value)";
+    if (c.total) return "Total";
+    return value(c);
+  }
+  function cell(c) {
+    if (!c) return "";
+    c = c.data[0][0];
+    return value(c);
+  }
+  function value(c) {
+    if (!c) return "";
+    if (typeof c === "number") return c.toLocaleString();
+    if (c instanceof Date) return c.toLocaleString();
+    return c;
+  }
+
+</script>
+
+</body>
+</html>
