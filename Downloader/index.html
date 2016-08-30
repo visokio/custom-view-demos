@@ -1,0 +1,243 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+
+    <style>
+        html, body, main {
+
+            /* Ensure the body fills the view, so clicks are handled everywhere: */
+            width: 100%;
+            height: 100%;
+            font-family: sans-serif;
+        }
+        main {
+            font-size: 16px;
+        }
+        a {
+            color: #666;
+        }
+        a#download {
+            font-weight: bold;
+        }
+    </style>
+
+    <!-- Put SCRIPT tags to load 3rd party libraries here -->
+
+</head>
+
+<body>
+
+<main id="main"><!-- This element is where the view will render -->
+  <p>
+  A demonstration of using HTML5 download of client-side generated XML, Excel and CSV data retrieved in the view using custom view and query APIs. 
+  Uses <a href="https://github.com/stephenliberty/excel-builder.js">excel-builder.js</a>.
+  <p>
+  <a id="downloadExcel" download="data.xlsx">Download Excel data</a>
+  <p>
+  <a id="downloadXml" download="data.xml">Download XML data</a>
+  <p>
+  <a id="downloadCsv" download="data.csv">Download CSV data</a>
+</main>
+
+<script src="/_global_/customview/v1/omniscope.js"></script><!-- Add the Omniscope custom view API -->
+<script src="excel-builder.compiled.min.js"></script>
+
+<script>
+    if (!omniscope || !omniscope.view) throw new Error("Omniscope chart API is not loaded");
+    omniscope.view.on("load", function() {
+        window.onerror = function(msg) {
+            omniscope.view.error(msg);
+        }
+    });
+    document.body.addEventListener("click", function() { omniscope.view.whitespaceClick(); });
+
+    var render = function(result) {
+      
+        var data = result.records;
+        var schema = result.schema;
+
+      
+      	/////////////// Excel //////////////////////////////////////////////////////////////////////////////////////////
+      
+        var EB = ExcelBuilder.Builder;
+        var workbook = EB.createWorkbook();
+        var worksheet = workbook.createWorksheet({name: "Data"});
+        var stylesheet = workbook.getStyleSheet();
+        var boldFormatter = stylesheet.createFormat({ font: { bold: true } });
+
+        // http://excelbuilderjs.com/
+        // https://github.com/stephenliberty/excel-builder.js
+      
+        //var headers = schema.fields.map(function(field) {return field.name;});
+      
+        var renderCellAsText = function(cell) {
+          if (cell===null) return null;
+          if (cell instanceof Date) return cell;
+          if (typeof cell === "object") {
+            if (cell.lower!==undefined) return cell.lower+" to "+cell.upper; // ValueRange
+            return JSON.stringify(cell); // ?
+          }
+          return cell; // string, number
+        };
+      
+        var headers = schema.fields.map(function(sf) { return renderCellAsText(sf.name); });
+        var excelData = [headers].concat(data.map(function(record) {
+          return record.map(renderCellAsText);
+        }));
+      
+        worksheet.setData(excelData);
+        workbook.addWorksheet(worksheet);
+      
+        ExcelBuilder.Builder.createFile(workbook).then(function(xlsxData) {
+          var link = document.getElementById("downloadExcel");
+          link.setAttribute("href", 
+	  	    "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," + 
+            xlsxData);
+          link.textContent = "Download Excel data ("+schema.fields.length+" fields, "+data.length+" records)";
+        });
+
+      
+      
+      	/////////////// XML //////////////////////////////////////////////////////////////////////////////////////////
+      
+        var xmlDoc = document.implementation.createDocument("http://www.visokio.com/xmldata", "data");
+      
+        var metaNode = xmlDoc.createElement("meta");
+        xmlDoc.documentElement.appendChild(metaNode);
+        schema.fields.forEach(function(field) {
+          var columnNode = xmlDoc.createElement("column");
+          columnNode.setAttribute("name", field.name); // but note that auto-query generates meaningless internal field names
+          metaNode.appendChild(columnNode);
+        });
+      
+        data.forEach(function(record) {
+          var recordNode = xmlDoc.createElement("row");
+          xmlDoc.documentElement.appendChild(recordNode);
+          record.forEach(function(cell) {
+            var cellNode = xmlDoc.createElement("cell");
+            if (cell!==null && cell!==undefined) cellNode.textContent = renderCellAsText(cell);
+            recordNode.appendChild(cellNode);
+          });
+        });
+      
+		var xmlString = new XMLSerializer().serializeToString(xmlDoc);
+
+        var link = document.getElementById("downloadXml");
+        link.setAttribute("href", 
+			"data:text/xml;base64," + btoa(xmlString));
+        link.textContent = "Download XML data ("+schema.fields.length+" fields, "+data.length+" records)";
+      
+      
+      
+      	/////////////// CSV //////////////////////////////////////////////////////////////////////////////////////////
+      
+        var csv = "";
+        var separatorChar = ","; // also hard-coded below in regexp
+        var delimiterChar = '"';
+      
+        var quote = function(cell) {
+          cell = renderCellAsText(cell);
+          if (cell===null || cell===undefined) return ""; // no quoting needed for empty cells
+          cell = String(cell); // convert number/Date to string
+          
+          var needToQuote = false;
+
+          // Process all quotes, doubling up.  If any were found, we need to quote the entire cell:
+          var p = cell.indexOf(delimiterChar);
+          if (p >= 0) {
+            needToQuote = true;
+            cell = cell.replace(/"/gi, '""');
+          }
+
+          // Also quote if cell contains commas or linebreaks:
+          if (!needToQuote) {
+            if (cell.indexOf(separatorChar)>=0 || cell.indexOf('\n')>=0 || cell.indexOf('\r')>=0) needToQuote = true;
+          }
+
+          if (needToQuote) {
+            cell = delimiterChar + cell + delimiterChar;
+          }
+          return cell;
+        };
+      
+        schema.fields.forEach(function(field, x) {
+          if (x>0) csv += separatorChar;
+          csv += quote(field.name);
+        });
+        csv += "\n";
+      
+        data.forEach(function(record, y) {
+          record.forEach(function(cell, x) {
+            if (x>0) csv += separatorChar;
+            csv += quote(cell);
+          });
+          csv += "\n";
+        });
+      
+        link = document.getElementById("downloadCsv");
+        link.setAttribute("href", 
+			"data:text/csv;base64," + btoa(csv));
+        link.textContent = "Download CSV data ("+schema.fields.length+" fields, "+data.length+" records)";
+    };
+  
+
+    /////////////// The query ////////////////////////////////////////////////////////////////////////////////////////
+
+    omniscope.view.on(["load", "update"], function() {
+      
+      // Apply view's filters:
+      var query = {
+        "@visokiotype": "QueryApi.RecordFilterOperation",
+        filter: omniscope.view.context().dataConfig.filter
+      }
+      
+      query = { 
+        "@visokiotype": "QueryApi.AggregateOperation",
+        input: query,
+        groupings: [
+          {inputField: "Category", type: "UNIQUE_VALUES", name: "Category"},
+          {inputField: "Implied Credit Rating", type: "UNIQUE_VALUES", name: "Implied Credit Rating"},
+          {inputField: "Coupon", type: "HISTOGRAM", histogramInterval: 2, name: "Coupon (grouping)"} // customising output name
+        ], 
+        measures: [
+          {function: "RECORD_COUNT", name: "Record count"},
+          {function: "MEAN", inputField: "Coupon", name: "Coupon (mean)"},
+          {function: "SUM", inputField: "Coupon", name: "Coupon (sum)"}
+        ]
+      };
+      
+      // if we were to provide just this input object instead of wrapping it in FieldMappingOperation,
+      // it would have columns fixed to order [groupings, measures]
+      // whereas FieldMappingOperation allows us to reorder them.
+      // If you're happy with groupings-then-measures ordering, remove this:
+      query = {
+        "@visokiotype": "QueryApi.FieldMappingOperation",
+        input: query,
+        mappings: [
+          { inputField: "Record count", name: "Record count" },
+          { inputField: "Category", name: "Category" },
+          { inputField: "Implied Credit Rating", name: "Implied Credit Rating" },
+          { inputField: "Coupon (grouping)", name: "Coupon (grouping)" },
+          { inputField: "Coupon (mean)", name: "Coupon (mean)" },
+          { inputField: "Coupon (sum)", name: "Coupon (sum)" }
+        ]
+      }
+
+      omniscope.query.builder(omniscope.view.endpoint()).table(query)
+        .on("error", function(event) {
+          if (event.data.error) console.log(event.data.error);
+          omniscope.view.error(event.data.message, event.data.internal);
+        })
+        .on("load", function(event) {
+          render(event.data);
+        })
+        .execute();
+      
+    });
+
+
+</script>
+
+</body>
+</html>
