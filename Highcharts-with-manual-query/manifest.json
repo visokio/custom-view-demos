@@ -1,0 +1,93 @@
+{
+  "name": "High chart",
+  "frameworkVersion": "v1",
+  "sandbox": false,
+  "autoPane": true,
+  "autoQuery": false,
+  "options": {
+    "items": {
+      "measure": {
+        "displayName": "Measure",
+        "type": "MEASURE",
+        "mandatory": true,
+        "validFieldTypes": [
+          "NUMBER"
+        ]
+      },
+      "paneX": {
+        "displayName": "Pane X",
+        "type": "GROUPING",
+        "list": true
+      },
+      "paneY": {
+        "displayName": "Pane Y",
+        "type": "GROUPING",
+        "list": true
+      },
+      "split": {
+        "displayName": "Split",
+        "type": "GROUPING",
+        "mandatory": true,
+        "validFieldTypes": [
+          "NUMBER",
+          "TEXT"
+        ],
+        "validGroupingTypes": [
+          "UNIQUE_VALUES"
+        ]
+      },
+      "type": {
+        "displayName": "Chart type",
+        "type": "CHOICE",
+        "mandatory": true,
+        "values": [
+          "column",
+          "bar",
+          "line",
+          "pie",
+          "scatter",
+          "pyramid"
+        ],
+        "displayValues": [
+          "Bar",
+          "Bar flipped",
+          "Line",
+          "Pie",
+          "Graph",
+          "Pyramid"
+        ]
+      }
+    },
+    "structure": {
+      "toolbar": [
+        "split",
+        "measure",
+        "type"
+      ],
+      "x": [
+        "paneX"
+      ],
+      "y": [
+        "paneY"
+      ]
+    }
+  },
+  "defaultOptions": {
+    "items": {
+      "type": "bar"
+    },
+    "pane": {
+      "headerWidth": 100,
+      "headerHeight": 30,
+      "paneWidth": 100,
+      "paneHeight": 100,
+      "xHeaderPlacement": "TOP",
+      "yHeaderPlacement": "LEFT"
+    }
+  },
+  "pane": {
+    "minWidth": 50,
+    "minHeight": 50,
+    "maxCells": 20
+  }
+}
