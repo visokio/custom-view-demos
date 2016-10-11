@@ -1,0 +1,197 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    
+    <title>High chart</title>
+    
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+<script src="http://code.highcharts.com/highcharts.js"></script>
+<script src="http://code.highcharts.com/modules/funnel.js"></script>
+<script src="http://code.highcharts.com/modules/exporting.js"></script>
+  
+  
+
+</head>
+
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<body>
+<script src="/_global_/customview/v1/omniscope.js"></script>
+
+
+<div id="main" style="position:absolute;width:98%;height:98%;margin:0;padding:0" ></div>
+
+<script>
+
+    if (!omniscope || !omniscope.view) throw new Error("Omniscope chart API is not loaded");
+    
+    var render = function (result) {
+
+				var labels = [];
+
+    			for (var i=0; i<result.records.length; i++) {
+    				labels.push(result.records[i][0]);
+    			}
+      
+      			var measure = omniscope.view.context().options.items.measure;
+      
+      			var yAxisLabel = "";
+      
+      			if (!measure.inputField) {
+                 	yAxisLabel = measure.function; 
+                } else {
+                 	yAxisLabel = measure.inputField + " (" + measure.function +")"; 
+                }
+      
+      			var xAxisType = "categories";
+                var xAxisCats = labels;
+      			var xAxistickInterval  = null;
+      			var xAxisdateTimeLabelFormats = null;
+      			if(result.schema.fields[0].type === "NUMBER") {
+                 	xAxisType = "linear"; 
+                    xAxistickInterval  = null;
+                  	xAxisCats = null;
+                } 
+      			
+      		
+      			
+			    $('#main').highcharts({
+					 chart: {
+                       			events:{
+                                    click:function(){
+                                    	omniscope.view.whitespaceClick();
+                                    }
+                                },
+                       			type: omniscope.view.context().options.items.type
+					        },
+                  			 credits: {
+           						enabled: false
+        					},
+					       title: {
+					            text: null
+					        },
+					        xAxis: {
+                               gridLineWidth:1,
+                               
+					            categories: xAxisCats,
+                                type: xAxisType,
+                                tickInterval: xAxistickInterval
+                               
+                               
+					        },
+					        yAxis: {
+                               gridLineDashStyle: 'longdash',
+					            title: {
+					                text: yAxisLabel
+					            }
+					        },
+					        plotOptions: {
+					           
+                                series: {
+                                    animation: 1000,
+                                    allowPointSelect: true,
+                                   dataLabels: {
+                    					enabled: true
+                					},
+                                    states: {
+                                      select: {
+                                          color: 'blue'
+                                      }
+                                    },
+                                    point: {
+                                        events: {
+                                            click: function () {
+                                               
+                                            var filter = null;
+                                            if (!this.selected) {
+                                              
+                                              // Weird issue with HighCharts where selected state appears to be done after this call to event.click.
+                                               var selectedValue = this.category;
+												var fieldName = omniscope.view.context().options.items["split"].inputField;
+                                                filter  = {
+                                                  "type": "AND",
+                                                  "filters": [
+                                                      {
+                                                          "type": "FIELD_VALUE",
+                                                          "inputField": fieldName,
+                                                          "operator": "=",
+                                                          "value": selectedValue
+                                                      }
+                                                  ]
+                                                };
+                                            } else {
+                                               filter = null; // Clear selection when unticking the bar.
+                                              
+                                            }
+                                           
+                                           
+
+                                        omniscope.view.context().viewSelection = filter;
+                                        omniscope.view.updated();                            
+                                              
+                                              
+                                              
+                                              
+                                              
+                                              
+                                              
+                                              
+                                              
+                                            }
+                                        }
+                                    }
+                                }
+                              
+                                
+					        },
+                  			legend: {enabled: false},
+					        series: [{
+					            data: result.records
+					        }]
+                  
+                           
+           
+			    });
+        
+        
+    };
+
+    var update = function () {
+        omniscope.view.busy(true);
+
+        // If it were auto-query... 
+        // render(omniscope.view.context().result.data);
+      
+        // But it's not, so...
+        var context = omniscope.view.context();
+        var query = {
+            groupings: [
+               context.options.items.split
+            ],
+            measures: [
+               Object.assign({}, context.options.items.measure, {"@visokiotype": "QueryApi.TableMeasure", name: "M"})
+            ],
+            filter: context.dataConfig.filter
+        };
+        query = {
+          input: query,
+          sorts: [{inputField: "M", direction: "DESCENDING"}]
+        };
+        query = {
+          input: query,
+          range: { start: 0, length: 20 }
+        };
+
+        omniscope.query.builder(omniscope.view.endpoint()).table(query)
+                .on("load", function(event) {
+                    render(event.data);
+                    omniscope.view.busy(false);
+                })
+                .execute();      
+
+    };
+    omniscope.view.on(["load", "update", "resize"], update);
+
+</script>
+</body>
+</html>
