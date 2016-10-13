@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+
+    <style>
+        html, body, main {
+
+            /* Ensure the body fills the view, so clicks are handled everywhere: */
+            width: 100%;
+            min-height: 100%;
+          
+            font-family: sans-serif;
+            font-size: 14px;
+        }
+        main {
+            white-space: pre;
+        }
+    </style>
+
+    <!-- Put SCRIPT tags to load 3rd party libraries here -->
+
+</head>
+
+<body>
+
+<h1>Dynamic title with <span id="v1"></span> (record count) inserted</h1>
+  
+  Paragraph of <b>styled</b> <i>text</i> with <span id="v2" style="color: red"></span> (mean coupon) inserted.
+
+<script src="/_global_/customview/v1/omniscope.js"></script><!-- Add the Omniscope custom view API -->
+
+<script>
+    if (!omniscope || !omniscope.view) throw new Error("Omniscope chart API is not loaded");
+    omniscope.view.on("load", function() {
+        window.onerror = function(msg) {
+            omniscope.view.error(msg);
+        }
+    });
+
+    // Ensure clicks on unoccupied space clear the selection in Omniscope, and close menus:
+    document.body.addEventListener("click", function() {
+        omniscope.view.whitespaceClick();
+    });
+
+    // Naively redraw on any of these events 
+    // (load = first init, update = external settings/state change, resize = browser window resized)
+    omniscope.view.on(["load", "update", "resize"], function() {
+
+        omniscope.query.builder(omniscope.view.endpoint())
+            .batch({
+          		v1: {filter: omniscope.view.context().dataConfig.filter, groupings: [], measures: [{function: "RECORD_COUNT"}]},
+          		v2: {filter: omniscope.view.context().dataConfig.filter, groupings: [], measures: [{inputField: "Coupon", function: "MEAN"}]}
+            })
+            .on("error", function(event) {
+                if (event.data.error) console.log(event.data.error);
+                omniscope.view.error(event.data.message, event.data.internal);
+            })
+            .on("load", function(event) {
+		        document.getElementById("v1").textContent = event.data.v1.records[0][0];
+		        document.getElementById("v2").textContent = Math.round(event.data.v2.records[0][0]*10)/10;
+                omniscope.view.busy(false);
+            })
+            .execute();
+
+    });
+
+</script>
+
+</body>
+</html>
