@@ -1,0 +1,31 @@
+{
+  "name": "Custom",
+  "frameworkVersion": "v1",
+  "sandbox": false,
+  "autoPane": false,
+  "autoQuery": false,
+  "options": {
+    "items": {},
+    "structure": {
+      "toolbar": [],
+      "x": [],
+      "y": []
+    }
+  },
+  "defaultOptions": {
+    "items": {},
+    "pane": {
+      "headerWidth": 100,
+      "headerHeight": 30,
+      "paneWidth": 100,
+      "paneHeight": 100,
+      "xHeaderPlacement": "TOP",
+      "yHeaderPlacement": "LEFT"
+    }
+  },
+  "pane": {
+    "minWidth": 50,
+    "minHeight": 50,
+    "maxCells": 20
+  }
+}
