@@ -26,7 +26,8 @@
 
 <h1>Dynamic title with <span id="v1"></span> (record count) inserted</h1>
   
-  Paragraph of <b>styled</b> <i>text</i> with <span id="v2" style="color: red"></span> (mean coupon) inserted.
+  Paragraph of <b>styled</b> <i>text</i> with <span id="v2" style="color: red"></span> (mean coupon rounded to 1dp) inserted
+  and unique value count <span id="v3"></span>.
 
 <script src="/_global_/customview/v1/omniscope.js"></script><!-- Add the Omniscope custom view API -->
 
@@ -50,7 +51,8 @@
         omniscope.query.builder(omniscope.view.endpoint())
             .batch({
           		v1: {filter: omniscope.view.context().dataConfig.filter, groupings: [], measures: [{function: "RECORD_COUNT"}]},
-          		v2: {filter: omniscope.view.context().dataConfig.filter, groupings: [], measures: [{inputField: "Coupon", function: "MEAN"}]}
+          		v2: {filter: omniscope.view.context().dataConfig.filter, groupings: [], measures: [{inputField: "Coupon", function: "MEAN"}]},
+          		v3: {input: {filter: omniscope.view.context().dataConfig.filter, groupings: [{inputField: "Implied Credit Rating", type: "UNIQUE_VALUES"}]}, groupings: [], measures: [{function: "RECORD_COUNT"}]},
             })
             .on("error", function(event) {
                 if (event.data.error) console.log(event.data.error);
@@ -59,6 +61,7 @@
             .on("load", function(event) {
 		        document.getElementById("v1").textContent = event.data.v1.records[0][0];
 		        document.getElementById("v2").textContent = Math.round(event.data.v2.records[0][0]*10)/10;
+		        document.getElementById("v3").textContent = event.data.v3.records[0][0];
                 omniscope.view.busy(false);
             })
             .execute();
