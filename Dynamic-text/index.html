@@ -47,6 +47,7 @@
     // Naively redraw on any of these events 
     // (load = first init, update = external settings/state change, resize = browser window resized)
     omniscope.view.on(["load", "update", "resize"], function() {
+        omniscope.view.busy(true);
 
         omniscope.query.builder(omniscope.view.endpoint())
             .batch({
